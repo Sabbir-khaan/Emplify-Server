@@ -38,34 +38,48 @@ run().catch(console.dir);
 app.get("/", (req, res) => {
   res.send("Emplify Server is Running");
 });
-// WorkSheets Related API
-// Get all worksheets (optional date filter)
+          // WorkSheets Related API
+
+// Get all Newest Task To Selected date by user
 app.get("/worksheet", async (req, res) => {
-  const { date } = req.query;
-  let query = {};
+  try {
+    const { date, email } = req.query;
 
-  if (date) {
-    const selectedDate = new Date(date);
-    const nextDay = new Date(selectedDate);
-    nextDay.setDate(nextDay.getDate() + 1);
-    query.date = { $gte: selectedDate, $lt: nextDay };
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const query = { email };
+
+    if (date) {
+      const selectedDate = new Date(date);
+      const nextDay = new Date(selectedDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+
+      query.date = { $gte: selectedDate, $lt: nextDay };
+    }
+
+    const worksheets = await workSheetCollection
+      .find(query)
+      .sort({ createdAt: -1 }) // ✅ newest first
+      .toArray();
+
+    res.status(200).json(worksheets);
+  } catch (error) {
+    console.error("Error fetching worksheet:", error);
+    res.status(500).json({ message: "Server error" });
   }
-
-  const worksheets = await workSheetCollection
-    .find(query)
-    .sort({ createdAt: -1 })
-    .toArray();
-
-  res.json(worksheets);
 });
 
-// Add new worksheet
+
+// Add new Task into Database  API
 app.post("/worksheet", async (req, res) => {
-  const { task, hours, date } = req.body;
+  const { task, hours, date, email } = req.body;
   const worksheet = {
     task,
     hours: Number(hours),
     date: new Date(date),
+    email,
     createdAt: new Date(),
   };
   const result = await workSheetCollection.insertOne(worksheet);
